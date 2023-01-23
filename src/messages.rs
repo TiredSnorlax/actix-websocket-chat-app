@@ -1,5 +1,11 @@
-use actix::prelude::{Message, Recipient};
+use actix::{
+    prelude::{Message, Recipient},
+    Addr,
+};
+use serde::{Deserialize, Serialize};
 use uuid::Uuid;
+
+use crate::client::WsConn;
 
 #[derive(Message)]
 #[rtype(result = "()")]
@@ -10,7 +16,7 @@ pub struct ServerMessage(pub String);
 pub struct Connect {
     pub user_id: Uuid,
     pub room_id: Uuid,
-    pub addr: Recipient<ServerMessage>,
+    pub addr: Addr<WsConn>,
 }
 
 #[derive(Message)]
@@ -25,5 +31,21 @@ pub struct Disconnect {
 pub struct ClientMessage {
     pub user_id: Uuid,
     pub msg: String,
-    pub room_id: Uuid
+    pub room_id: Uuid,
+}
+
+#[derive(Message, Serialize, Deserialize)]
+#[rtype(result = "()")]
+pub struct InfoMessage {
+    pub info_type: String,
+    pub body: String,
+    pub room_id: Uuid,
+}
+
+#[derive(Message, Serialize, Deserialize, Clone)]
+#[rtype(result = "()")]
+pub struct UserMessage {
+    pub user_id: Uuid,
+    pub msg: String,
+    pub room_id: Uuid,
 }

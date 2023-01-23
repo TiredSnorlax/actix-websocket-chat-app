@@ -2,14 +2,14 @@ use std::time::{Duration, Instant};
 
 use actix::{
     fut, Actor, ActorContext, ActorFutureExt, Addr, AsyncContext, ContextFutureSpawner, Handler,
-    Running, WrapFuture, StreamHandler,
+    Running, StreamHandler, WrapFuture,
 };
 use actix_web_actors::ws;
 use uuid::Uuid;
 
 use crate::{
     lobby::Lobby,
-    messages::{Connect, Disconnect, ServerMessage, ClientMessage},
+    messages::{ClientMessage, Connect, Disconnect, InfoMessage, UserMessage, ServerMessage},
 };
 
 const HEARTBEAT_INTERVAL: Duration = Duration::from_secs(5);
@@ -23,10 +23,10 @@ pub struct WsConn {
 }
 
 impl WsConn {
-    pub fn new(room: Uuid, lobby_addr: Addr<Lobby>) -> Self {
+    pub fn new(room: Uuid, lobby_addr: Addr<Lobby>, user_id: Uuid) -> Self {
         WsConn {
             room,
-            user_id: Uuid::new_v4(),
+            user_id,
             lobby_addr,
             hb: Instant::now(),
         }
@@ -58,7 +58,7 @@ impl Actor for WsConn {
 
         self.lobby_addr
             .send(Connect {
-                addr: addr.recipient(),
+                addr,
                 room_id: self.room,
                 user_id: self.user_id,
             })
@@ -101,7 +101,7 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for WsConn {
                 ctx.stop();
             }
             Ok(ws::Message::Nop) => (),
-            Ok(ws::Message::Text(s)) => self.lobby_addr.do_send(ClientMessage {
+            Ok(ws::Message::Text(s)) => self.lobby_addr.do_send(UserMessage {
                 user_id: self.user_id,
                 msg: s.to_string(),
                 room_id: self.room,
@@ -117,5 +117,23 @@ impl Handler<ServerMessage> for WsConn {
 
     fn handle(&mut self, msg: ServerMessage, ctx: &mut Self::Context) {
         ctx.text(msg.0);
+    }
+}
+
+impl Handler<InfoMessage> for WsConn {
+    type Result = ();
+
+    fn handle(&mut self, msg: InfoMessage, ctx: &mut Self::Context) {
+        let json_res = serde_json::to_string(&msg).unwrap();
+        ctx.text(json_res);
+    }
+}
+
+impl Handler<UserMessage> for WsConn {
+    type Result = ();
+
+    fn handle(&mut self, msg: UserMessage, ctx: &mut Self::Context) {
+        let json_res = serde_json::to_string(&msg).unwrap();
+        ctx.text(json_res);
     }
 }
