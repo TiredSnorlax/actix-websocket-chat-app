@@ -1,5 +1,5 @@
 export const serverDomain = 'http://127.0.0.1:8080/';
-export const clientDomain = 'http://localhost:5173/';
+export const clientDomain = 'http://127.0.0.1:5173/';
 
 export const getSession = async () => {
 	let _session = '';

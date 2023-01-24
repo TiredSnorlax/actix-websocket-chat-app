@@ -1,5 +1,5 @@
 <script lang="ts">
-    import type { IInfoMessage } from "$lib/types/messages";
+    import type { IInfoMessage } from "$lib/types";
 
     export let msg: IInfoMessage;
     const MSG_COLORS: {[key: string]: string } = {

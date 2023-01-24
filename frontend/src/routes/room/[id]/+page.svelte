@@ -1,85 +1,89 @@
-
 <script lang="ts">
-  import MsgContainer from "$lib/components/messages/MsgContainer.svelte";
-  import MsgInput from "$lib/components/messages/MsgInput.svelte";
-  import { getSession } from "$lib/helper/connect";
-  import { onDestroy, onMount } from "svelte";
-  import { page } from "$app/stores";
+	import MsgContainer from '$lib/components/messages/MsgContainer.svelte';
+	import MsgInput from '$lib/components/messages/MsgInput.svelte';
+	import { getSession } from '$lib/helper/connect';
+	import { onDestroy, onMount } from 'svelte';
+	import { page } from '$app/stores';
+	import type { PageData } from './$types';
 
-  let socket: WebSocket | null;
+	export let data: PageData;
 
-  let msgList: string[] = [];
-  let newText = "";
+	let socket: WebSocket | null;
 
-  const connect = async () => {
-    let session = localStorage.getItem("session");
-    console.log(session)
+	let msgList: string[] = [];
+	let newText = '';
 
-    if (!session) {
-      session = await getSession()
-    }
+	const connect = async () => {
+		let session = localStorage.getItem('session');
+		console.log(session);
 
-    if (socket) return;
-    const { location } = window;
+		if (!session) {
+			session = await getSession();
+		}
 
-    const proto = location.protocol.startsWith("https") ? "wss" : "ws";
-    const params = new URLSearchParams();
-    params.append("session", session!);
-    const wsUri = `${proto}://127.0.0.1:8080/ws/${$page.params.id}?${params.toString()}`;
+		if (socket) return;
+		const { location } = window;
 
-    socket = new WebSocket(wsUri);
+		const proto = location.protocol.startsWith('https') ? 'wss' : 'ws';
+		const params = new URLSearchParams();
+		params.append('session', session!);
+		const wsUri = `${proto}://127.0.0.1:8080/ws/${$page.params.id}?${params.toString()}`;
 
-    socket.onopen = () => {
-      console.log("Connected");
-    };
+		socket = new WebSocket(wsUri);
 
-    socket.onclose = () => {
-      console.log("Disconnected");
-    };
+		socket.onopen = () => {
+			console.log('Connected');
+		};
 
-    socket.onmessage = (ev) => {
-      console.log(`Received: ${ev.data}`);
-      msgList = [...msgList, ev.data];
-    };
-  };
+		socket.onclose = () => {
+			console.log('Disconnected');
+		};
 
-  const disconnect = () => {
-    if (!socket )return;
-    socket.close();
-    socket = null;
-  }
+		socket.onmessage = (ev) => {
+			console.log(`Received: ${ev.data}`);
+			msgList = [...msgList, ev.data];
+		};
+	};
 
-  const send = () => {
-    if (!socket) return;
-    socket.send(newText);
-    newText = "";
-  }
+	const disconnect = () => {
+		if (!socket) return;
+		socket.close();
+		socket = null;
+	};
 
-  onMount( () => {
-    connect();
-  })
+	const send = () => {
+		if (!socket) return;
+		socket.send(newText);
+		newText = '';
+	};
 
-  onDestroy( () => {
-    disconnect()
-  })
+	onMount(() => {
+		connect();
+	});
+
+	onDestroy(() => {
+		disconnect();
+	});
 </script>
 
 <div class="page">
-  <h1>Chat</h1>
-    <MsgContainer {msgList} />
-    <MsgInput bind:newText { send } />
+	<h1>Room: {data.room.name}</h1>
+	<MsgContainer {msgList} />
+	<MsgInput bind:newText {send} />
 </div>
 
-
 <style>
-  .page {
-    height: 100vh;
+  h1 {
+    padding: 1rem;
   }
 
-  .page {
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-    gap: 1rem;
-  }
+	.page {
+		height: 100vh;
+
+		display: flex;
+		flex-direction: column;
+		justify-content: space-between;
+		gap: 1rem;
+	}
+
 </style>

@@ -1,5 +1,5 @@
 <script lang="ts">
-    import type { IUserMessage} from "$lib/types/messages";
+    import type { IUserMessage} from "$lib/types";
     const current_session = localStorage.getItem("session");
     export let msg: IUserMessage;
 </script>

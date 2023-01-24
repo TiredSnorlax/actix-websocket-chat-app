@@ -25,6 +25,9 @@ mod client;
 mod lobby;
 mod messages;
 
+const CLIENT_DOMAIN: &str = "http://127.0.0.1:5173";
+const SERVER_DOMAIN: &str = "http://127.0.0.1:8080";
+
 #[derive(Deserialize)]
 struct SocketQuery {
     session: String,
@@ -62,6 +65,7 @@ async fn start_connection() -> web::Json<ConnectionResponse> {
 #[derive(Deserialize, Serialize, Debug, Clone)]
 struct Room {
     name: String,
+    description: String,
     id: Uuid,
 }
 
@@ -78,6 +82,7 @@ async fn list_rooms(data: web::Data<RoomsState>) -> web::Json<Vec<Room>> {
 #[derive(Debug, Serialize, Deserialize)]
 struct NewChatBody {
     name: String,
+    description: String,
 }
 
 #[post("/room/new")]
@@ -91,13 +96,33 @@ async fn start_new_room(
 
     let new_room = Room {
         name: body.name.clone(),
+        description: body.description.clone(),
         id: new_id.clone(),
     };
 
     (*rooms).push(new_room);
 
     // TODO add a client domain constant
-    Redirect::to(format!("http://localhost:5173/room/{}", new_id)).using_status_code(StatusCode::FOUND)
+    Redirect::to(format!("{}room/{}", CLIENT_DOMAIN, new_id)).using_status_code(StatusCode::FOUND)
+}
+
+#[post("/room/{room_id}/data")]
+async fn get_room_data(path: Path<String>, data: web::Data<RoomsState>) -> web::Json<Room> {
+    let room_id = path.into_inner();
+    let rooms = data.rooms.lock().unwrap();
+
+    if let Some(room) = (*rooms)
+        .iter()
+        .find(|room| (*room).id == Uuid::from_str(&room_id).unwrap_or(Uuid::new_v4()))
+    {
+        return web::Json(room.clone());
+    } else {
+        return web::Json(Room {
+            name: "Default".to_owned(),
+            description: "".to_owned(),
+            id: Uuid::new_v4(),
+        });
+    }
 }
 
 #[get("/test")]
@@ -113,6 +138,7 @@ async fn main() -> std::io::Result<()> {
     let rooms = Data::new(RoomsState {
         rooms: Mutex::new(vec![Room {
             name: "main".to_owned(),
+            description: "This is the main chat room that will always be available".to_owned(),
             id: Uuid::new_v4(),
         }]),
     });
@@ -121,11 +147,11 @@ async fn main() -> std::io::Result<()> {
         App::new()
             .wrap(
                 Cors::default()
-                    .allowed_origin("http://localhost:5173")
+                    .allowed_origin(CLIENT_DOMAIN)
                     .allowed_methods(vec!["GET", "POST"])
                     .allowed_headers(vec![header::AUTHORIZATION, header::ACCEPT])
                     .allowed_header(header::CONTENT_TYPE)
-                    .supports_credentials()
+                    .supports_credentials(),
             )
             .app_data(Data::new(chat_server.clone()))
             .app_data(rooms.clone())
@@ -133,6 +159,7 @@ async fn main() -> std::io::Result<()> {
             .service(start_connection)
             .service(list_rooms)
             .service(start_new_room)
+            .service(get_room_data)
             .service(hello) //register our route. rename with "as" import or naming conflict
             .service(fs::Files::new("/chat", "./static").show_files_listing())
             .wrap(Logger::default())
